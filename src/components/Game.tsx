@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { Card, GamePhase, GameResult } from '../types/poker';
 import { createDeck, shuffleDeck } from '../utils/deck';
 import { evaluateHand, compareHands, getCpuDiscards } from '../utils/handEvaluator';
+import { soundDeal, soundDraw, soundWin, soundLose, soundTie, soundBet, soundCardSelect, soundCardDeselect } from '../utils/sound';
 import Hand from './Hand';
 
 const INITIAL_CHIPS = 1000;
@@ -38,6 +39,8 @@ export default function Game() {
     setSelectedCards(new Set());
     setGameResult(null);
     setPhase('draw');
+    soundBet();
+    soundDeal();
     setMessage('捨てたいカードを選んで「交換する」を押してください（最大3枚）');
   }, [playerChips, cpuChips]);
 
@@ -47,8 +50,10 @@ export default function Game() {
       const next = new Set(prev);
       if (next.has(index)) {
         next.delete(index);
+        soundCardDeselect();
       } else if (next.size < 3) {
         next.add(index);
+        soundCardSelect();
       }
       return next;
     });
@@ -82,6 +87,7 @@ export default function Game() {
     setDeck(currentDeck);
     setSelectedCards(new Set());
     setPhase('showdown');
+    soundDraw();
 
     // Determine result
     const diff = compareHands(newPlayerHand, newCpuHand);
@@ -92,15 +98,18 @@ export default function Game() {
       result = 'player';
       msg = `あなたの勝ち！ +${pot} チップ獲得！`;
       setPlayerChips(c => c + pot);
+      soundWin();
     } else if (diff < 0) {
       result = 'cpu';
       msg = `CPUの勝ち！ ${pot} チップを失いました`;
       setCpuChips(c => c + pot);
+      soundLose();
     } else {
       result = 'tie';
       msg = '引き分け！チップが返ってきます';
       setPlayerChips(c => c + currentBet);
       setCpuChips(c => c + currentBet);
+      soundTie();
     }
 
     setGameResult(result);
