@@ -70,7 +70,8 @@ export function evaluateHand(cards: Card[]): HandResult {
     })
     .map(([v]) => parseInt(v));
 
-  let score = handRank * 100_000_000;
+  // let score = handRank * 100_000_000; // bug: Ace-high tiebreak (~1.4B) exceeds this separator
+  let score = handRank * 2_000_000_000;
   for (let i = 0; i < sortedByCount.length; i++) {
     score += sortedByCount[i] * Math.pow(100, sortedByCount.length - 1 - i);
   }
