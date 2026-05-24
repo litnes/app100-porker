@@ -15,15 +15,12 @@ export default function Game() {
   const [cpuHand, setCpuHand] = useState<Card[]>([]);
   const [deck, setDeck] = useState<Card[]>([]);
   const [pot, setPot] = useState(0);
-  const [currentBet, setCurrentBet] = useState(0);
   const [phase, setPhase] = useState<GamePhase>('idle');
   const [selectedCards, setSelectedCards] = useState<Set<number>>(new Set());
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [message, setMessage] = useState('');
 
-  const startGame = useCallback((bet: number) => {
-    if (playerChips < bet || cpuChips < bet) return;
-
+  const dealCards = useCallback(() => {
     const newDeck = shuffleDeck(createDeck());
     const pHand = newDeck.slice(0, 5);
     const cHand = newDeck.slice(5, 10);
@@ -32,17 +29,12 @@ export default function Game() {
     setDeck(remaining);
     setPlayerHand(pHand);
     setCpuHand(cHand);
-    setCurrentBet(bet);
-    setPot(bet * 2);
-    setPlayerChips(c => c - bet);
-    setCpuChips(c => c - bet);
     setSelectedCards(new Set());
     setGameResult(null);
     setPhase('draw');
-    soundBet();
     soundDeal();
     setMessage('捨てたいカードを選んで「交換する」を押してください（最大3枚）');
-  }, [playerChips, cpuChips]);
+  }, []);
 
   const toggleCard = useCallback((index: number) => {
     if (phase !== 'draw') return;
@@ -86,36 +78,45 @@ export default function Game() {
     setCpuHand(newCpuHand);
     setDeck(currentDeck);
     setSelectedCards(new Set());
-    setPhase('showdown');
     soundDraw();
+    setPhase('betting');
+  }, [phase, deck, playerHand, cpuHand, selectedCards]);
 
-    // Determine result
-    const diff = compareHands(newPlayerHand, newCpuHand);
+  const placeBet = useCallback((bet: number) => {
+    if (playerChips < bet || cpuChips < bet) return;
+
+    const newPot = bet * 2;
+    setPot(newPot);
+    setPlayerChips(c => c - bet);
+    setCpuChips(c => c - bet);
+    soundBet();
+
+    const diff = compareHands(playerHand, cpuHand);
     let result: GameResult;
     let msg: string;
 
     if (diff > 0) {
       result = 'player';
-      msg = `あなたの勝ち！ +${pot} チップ獲得！`;
-      setPlayerChips(c => c + pot);
+      msg = `あなたの勝ち！ +${newPot} チップ獲得！`;
+      setPlayerChips(c => c + newPot);
       soundWin();
     } else if (diff < 0) {
       result = 'cpu';
-      msg = `CPUの勝ち！ ${pot} チップを失いました`;
-      setCpuChips(c => c + pot);
+      msg = `CPUの勝ち！ ${newPot} チップを失いました`;
+      setCpuChips(c => c + newPot);
       soundLose();
     } else {
       result = 'tie';
       msg = '引き分け！チップが返ってきます';
-      setPlayerChips(c => c + currentBet);
-      setCpuChips(c => c + currentBet);
+      setPlayerChips(c => c + bet);
+      setCpuChips(c => c + bet);
       soundTie();
     }
 
     setGameResult(result);
     setMessage(msg);
     setPhase('result');
-  }, [phase, deck, playerHand, cpuHand, selectedCards, pot, currentBet]);
+  }, [playerChips, cpuChips, playerHand, cpuHand]);
 
   const reset = useCallback(() => {
     setPhase('idle');
@@ -195,22 +196,28 @@ export default function Game() {
                 </button>
               </div>
             ) : (
-              <>
-                <p className="bet-prompt">ベット額を選んでください</p>
-                <div className="bet-buttons">
-                  {BET_OPTIONS.map(bet => (
-                    <button
-                      key={bet}
-                      className="btn btn-bet"
-                      disabled={playerChips < bet || cpuChips < bet}
-                      onClick={() => startGame(bet)}
-                    >
-                      {bet}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <button className="btn btn-primary" onClick={dealCards}>
+                カードを配る
+              </button>
             )}
+          </div>
+        )}
+
+        {phase === 'betting' && (
+          <div className="betting-area">
+            <p className="bet-prompt">ベット額を選んでください</p>
+            <div className="bet-buttons">
+              {BET_OPTIONS.map(bet => (
+                <button
+                  key={bet}
+                  className="btn btn-bet"
+                  disabled={playerChips < bet || cpuChips < bet}
+                  onClick={() => placeBet(bet)}
+                >
+                  {bet}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
